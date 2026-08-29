@@ -1,0 +1,61 @@
+# Local development stack. Supabase itself is hosted (or run
+# `supabase start` for a fully local stack) — set env in .env.
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: deploy/Dockerfile
+      args: { SERVICE: api }
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      HTTP_ADDR: ":8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ingestion:
+    build:
+      context: ./backend
+      dockerfile: deploy/Dockerfile
+      args: { SERVICE: ingestion }
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  engine:
+    build:
+      context: ./backend
+      dockerfile: deploy/Dockerfile
+      args: { SERVICE: engine }
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:8080
+    env_file: .env

@@ -1,0 +1,172 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, sans-serif;
+  --up: #16a34a;
+  --down: #dc2626;
+  --accent: #6366f1;
+  --line: color-mix(in srgb, currentColor 12%, transparent);
+  --card: color-mix(in srgb, currentColor 4%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --up: #34d399; --down: #f87171; }
+}
+
+body { margin: 0; }
+main { max-width: 880px; margin: 0 auto; padding: 32px 20px; }
+
+/* ── Header ─────────────────────────────────────────────── */
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 2;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  margin: -32px -20px 0; padding: 14px 20px;
+}
+header div { display: flex; gap: 12px; align-items: center; font-size: 14px; }
+.who { opacity: 0.6; }
+h1 { font-size: 20px; margin: 0; display: flex; align-items: center; gap: 10px; }
+h2 { font-size: 16px; margin-top: 32px; }
+
+.live-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--up);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--up) 45%, transparent); }
+  60% { box-shadow: 0 0 0 7px transparent; }
+}
+
+/* ── Tables ─────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.6; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+tbody tr { transition: background 0.15s ease; }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.sym { font-weight: 600; }
+.exch { font-size: 11px; opacity: 0.55; letter-spacing: 0.04em; }
+.exch { opacity: 0.5; font-size: 12px; text-transform: uppercase; }
+.up { color: var(--up); }
+.down { color: var(--down); }
+
+/* price flash on tick */
+.ltp { display: inline-block; padding: 1px 6px; margin: -1px -6px; border-radius: 6px; }
+.tick-up { animation: flash-up 0.8s ease-out; }
+.tick-down { animation: flash-down 0.8s ease-out; }
+@keyframes flash-up {
+  0% { background: color-mix(in srgb, var(--up) 28%, transparent); }
+  100% { background: transparent; }
+}
+@keyframes flash-down {
+  0% { background: color-mix(in srgb, var(--down) 28%, transparent); }
+  100% { background: transparent; }
+}
+
+.signal-row { animation: slide-in 0.35s ease-out; }
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.badge {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.count { font-size: 12px; font-weight: normal; opacity: 0.55; margin-left: 8px; }
+.empty { opacity: 0.6; font-size: 14px; }
+
+/* ── Toolbar / inputs ───────────────────────────────────── */
+.toolbar { display: flex; gap: 8px; margin: 10px 0 14px; }
+.toolbar input { flex: 1; max-width: 320px; }
+.toolbar button { font-size: 13px; opacity: 0.7; }
+.toolbar button.active { opacity: 1; border-color: var(--accent); color: var(--accent); }
+
+input, button {
+  padding: 10px 14px; font-size: 15px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+input:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+button { cursor: pointer; }
+button:hover { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+button:active { transform: scale(0.97); }
+
+.error { color: var(--down); font-size: 13px; margin: 4px 0 0; }
+
+/* ── Sign-in ────────────────────────────────────────────── */
+.signin {
+  min-height: 100vh; display: grid; place-items: center;
+  padding: 20px; box-sizing: border-box;
+  background:
+    radial-gradient(600px 400px at 20% 10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent),
+    radial-gradient(600px 400px at 85% 90%, color-mix(in srgb, var(--up) 10%, transparent), transparent);
+}
+.signin-card {
+  width: 100%; max-width: 360px; text-align: center;
+  padding: 36px 28px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--card);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 60px color-mix(in srgb, currentColor 8%, transparent);
+  animation: card-in 0.4s ease-out;
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.logo-mark {
+  font-size: 22px; letter-spacing: -2px;
+  background: linear-gradient(135deg, var(--up), var(--accent));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.signin-card h1 { justify-content: center; font-size: 24px; margin: 8px 0 4px; }
+.tagline { font-size: 13px; opacity: 0.6; margin: 0 0 24px; }
+.signin-card form { display: flex; flex-direction: column; gap: 10px; }
+.primary {
+  background: var(--accent); color: #fff; border-color: transparent; font-weight: 600;
+}
+.primary:hover { filter: brightness(1.1); }
+.primary:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Tabs ───────────────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 6px; margin: 18px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+.tab {
+  background: none; border: none; border-radius: 8px 8px 0 0;
+  padding: 10px 16px; font-size: 14px; opacity: 0.65;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab:hover { opacity: 0.9; border-color: transparent; }
+.tab.active {
+  opacity: 1; font-weight: 600;
+  border-bottom-color: var(--accent); color: var(--accent);
+}
+.pill {
+  font-size: 11px; font-weight: 600; margin-left: 6px;
+  padding: 1px 7px; border-radius: 999px; color: #fff;
+}
+.buy-pill { background: var(--up); }
+.sell-pill { background: var(--down); }
+
+/* ── Weekly stats ───────────────────────────────────────── */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px; margin: 16px 0 8px;
+}
+.stat-card {
+  border: 1px solid var(--line); background: var(--card);
+  border-radius: 10px; padding: 14px 12px; text-align: center;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.stat-card b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.stat-card span { font-size: 12px; opacity: 0.65; }
+.stat-card.up b { color: var(--up); }
+.stat-card.down b { color: var(--down); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 640px) { .two-col { grid-template-columns: 1fr; } }

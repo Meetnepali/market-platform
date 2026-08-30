@@ -32,6 +32,26 @@ export interface Signal {
   created_at: string
 }
 
+export interface StockDetails {
+  symbol: string
+  name?: string
+  exchange: string
+  fifty_two_week_high?: number
+  fifty_two_week_low?: number
+  market_cap?: number
+  trailing_pe?: number
+  price_to_book?: number
+  trailing_eps?: number
+  dividend_yield?: number
+  book_value?: number
+  debt_to_equity?: number
+  roe?: number
+  beta?: number
+  alpha_annual?: number
+  vol_annual?: number
+  year_return?: number
+}
+
 export interface Candle {
   time: string
   open: number
@@ -75,6 +95,8 @@ export const api = {
   instruments: (): Promise<Instrument[]> =>
     fetch(`${API_URL}/api/instruments`).then((r) => r.json()),
   quote: (symbol: string) => get<Quote>(`/api/quotes/${symbol}`),
+  stockDetails: (symbol: string, exchange = 'NSE') =>
+    get<StockDetails>(`/api/stocks/${symbol}?exchange=${exchange}`),
   candles: (symbol: string, limit = 500) =>
     get<Candle[]>(`/api/candles/${symbol}?limit=${limit}`),
   signals: (limit = 100) => get<Signal[]>(`/api/signals?limit=${limit}`),

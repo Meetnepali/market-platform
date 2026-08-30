@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase'
 import { api, type Quote, type Signal } from './lib/api'
 import { useSignals } from './hooks/useSignals'
 import { useQuotes } from './hooks/useQuotes'
+import { StockDetail } from './components/StockDetail'
 
 const ALL = ['*'] // stream every stock the backend tracks
 const ALLOWED_EMAIL = 'meetnepali922@gmail.com'
@@ -168,6 +169,7 @@ function Dashboard({ email }: { email: string }) {
 function MarketTab({ quotes }: { quotes: Record<string, Quote> }) {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'symbol' | 'change' | 'week'>('change')
+  const [selected, setSelected] = useState<Quote | null>(null)
 
   const rows = useMemo(() => {
     const q = Object.values(quotes)
@@ -217,11 +219,12 @@ function MarketTab({ quotes }: { quotes: Record<string, Quote> }) {
         </thead>
         <tbody>
           {visible.map((q) => (
-            <QuoteRow key={`${q.exchange}:${q.instrument}`} q={q} />
+            <QuoteRow key={`${q.exchange}:${q.instrument}`} q={q} onSelect={setSelected} />
           ))}
         </tbody>
       </table>
       {rows.length === 0 && <p className="empty">Waiting for the first price sweep…</p>}
+      {selected && <StockDetail quote={selected} onClose={() => setSelected(null)} />}
     </section>
   )
 }
@@ -364,7 +367,13 @@ function weekPct(q: Quote): number {
   return base > 0 ? ((q.ltp - base) / base) * 100 : 0
 }
 
-const QuoteRow = memo(function QuoteRow({ q }: { q: Quote }) {
+const QuoteRow = memo(function QuoteRow({
+  q,
+  onSelect,
+}: {
+  q: Quote
+  onSelect?: (q: Quote) => void
+}) {
   const chg = changePct(q)
   const wk = weekPct(q)
   const prev = useRef(q.ltp)
@@ -373,7 +382,7 @@ const QuoteRow = memo(function QuoteRow({ q }: { q: Quote }) {
     prev.current = q.ltp
   }, [q.ltp])
   return (
-    <tr>
+    <tr className={onSelect ? 'clickable' : undefined} onClick={() => onSelect?.(q)}>
       <td className="sym">{q.instrument}</td>
       <td className="exch">{q.exchange}</td>
       <td>

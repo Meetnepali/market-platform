@@ -14,14 +14,15 @@ import (
 )
 
 type Server struct {
-	rdb  *redis.Client
-	db   *pgxpool.Pool
-	auth *Authenticator
-	log  *slog.Logger
+	rdb   *redis.Client
+	db    *pgxpool.Pool
+	auth  *Authenticator
+	log   *slog.Logger
+	yahoo *yahooClient
 }
 
 func NewServer(rdb *redis.Client, db *pgxpool.Pool, auth *Authenticator, log *slog.Logger) *Server {
-	return &Server{rdb: rdb, db: db, auth: auth, log: log.With("component", "api")}
+	return &Server{rdb: rdb, db: db, auth: auth, log: log.With("component", "api"), yahoo: newYahooClient()}
 }
 
 func (s *Server) Router(corsOrigin string) http.Handler {
@@ -50,6 +51,7 @@ func (s *Server) Router(corsOrigin string) http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(s.auth.Middleware)
 			r.Get("/quotes/{symbol}", s.handleGetQuote)
+			r.Get("/stocks/{symbol}", s.handleStockDetails)
 			r.Get("/candles/{symbol}", s.handleGetCandles)
 			r.Get("/signals", s.handleListSignals)
 			r.Post("/strategies", s.handleCreateStrategy)

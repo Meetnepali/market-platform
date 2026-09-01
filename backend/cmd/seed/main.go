@@ -28,9 +28,19 @@ import (
 )
 
 // Kite publishes per-exchange instrument dumps publicly (no auth).
+// NFO/BFO are the NSE/BSE derivative segments (futures & options).
 var instrumentDumps = map[string]string{
 	"NSE": "https://api.kite.trade/instruments/NSE",
 	"BSE": "https://api.kite.trade/instruments/BSE",
+	"NFO": "https://api.kite.trade/instruments/NFO",
+	"BFO": "https://api.kite.trade/instruments/BFO",
+}
+
+// fnoUnderlyings limits option seeding to liquid underlyings; futures
+// are seeded for every underlying. Pass -fno-all to override.
+var fnoUnderlyings = map[string]bool{
+	"NIFTY": true, "BANKNIFTY": true, "FINNIFTY": true, "MIDCPNIFTY": true,
+	"RELIANCE": true, "TCS": true, "HDFCBANK": true, "INFY": true, "SBIN": true,
 }
 
 // A liquid default universe so a fresh install has something sensible.
@@ -55,10 +65,14 @@ func main() {
 }
 
 type row struct {
-	token    int64
-	symbol   string
-	tickSize float64
-	lotSize  int
+	token      int64
+	symbol     string
+	tickSize   float64
+	lotSize    int
+	kind       string // EQ | FUT | CE | PE
+	expiry     string // yyyy-mm-dd, derivatives only
+	strike     float64
+	underlying string
 }
 
 func run(all bool, symbolsCSV, exchangesCSV string) error {
@@ -126,12 +140,17 @@ func download(url, exchange string, all bool, want map[string]bool) ([]row, int,
 	for i, h := range header {
 		col[h] = i
 	}
-	for _, required := range []string{"instrument_token", "tradingsymbol", "instrument_type", "segment", "tick_size", "lot_size"} {
-		if _, ok := col[required]; !ok {
-			return nil, 0, fmt.Errorf("instrument dump missing column %q", required)
+	required := []string{"instrument_token", "tradingsymbol", "instrument_type", "segment", "tick_size", "lot_size"}
+	if exchange == "NFO" || exchange == "BFO" {
+		required = append(required, "name", "expiry", "strike")
+	}
+	for _, want := range required {
+		if _, ok := col[want]; !ok {
+			return nil, 0, fmt.Errorf("instrument dump missing column %q", want)
 		}
 	}
 
+	derivatives := exchange == "NFO" || exchange == "BFO"
 	var rows []row
 	total := 0
 	for {
@@ -140,17 +159,40 @@ func download(url, exchange string, all bool, want map[string]bool) ([]row, int,
 			break
 		}
 		total++
-		if rec[col["instrument_type"]] != "EQ" || rec[col["segment"]] != exchange {
-			continue
-		}
+		itype := rec[col["instrument_type"]]
 		sym := rec[col["tradingsymbol"]]
-		if !all && !want[sym] {
-			continue
-		}
 		token, _ := strconv.ParseInt(rec[col["instrument_token"]], 10, 64)
 		tick, _ := strconv.ParseFloat(rec[col["tick_size"]], 64)
 		lot, _ := strconv.Atoi(rec[col["lot_size"]])
-		rows = append(rows, row{token: token, symbol: sym, tickSize: tick, lotSize: lot})
+
+		if derivatives {
+			underlying := rec[col["name"]]
+			switch itype {
+			case "FUT":
+				// all futures
+			case "CE", "PE":
+				if !all && !fnoUnderlyings[underlying] {
+					continue
+				}
+			default:
+				continue
+			}
+			strike, _ := strconv.ParseFloat(rec[col["strike"]], 64)
+			rows = append(rows, row{
+				token: token, symbol: sym, tickSize: tick, lotSize: lot,
+				kind: itype, expiry: rec[col["expiry"]], strike: strike,
+				underlying: underlying,
+			})
+			continue
+		}
+
+		if itype != "EQ" || rec[col["segment"]] != exchange {
+			continue
+		}
+		if !all && !want[sym] {
+			continue
+		}
+		rows = append(rows, row{token: token, symbol: sym, tickSize: tick, lotSize: lot, kind: "EQ"})
 	}
 	return rows, total, nil
 }
@@ -158,15 +200,30 @@ func download(url, exchange string, all bool, want map[string]bool) ([]row, int,
 func upsert(ctx context.Context, db *pgxpool.Pool, exchange string, rows []row) error {
 	batch := &pgx.Batch{}
 	for _, rw := range rows {
+		var expiry, underlying any
+		var strike any
+		if rw.expiry != "" {
+			expiry = rw.expiry
+		}
+		if rw.underlying != "" {
+			underlying = rw.underlying
+		}
+		if rw.strike > 0 {
+			strike = rw.strike
+		}
 		batch.Queue(`
-			insert into instruments (exchange, symbol, provider_token, tick_size, lot_size)
-			values ($1, $2, $3, $4, $5)
+			insert into instruments (exchange, symbol, provider_token, tick_size, lot_size, kind, expiry, strike, underlying)
+			values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			on conflict (exchange, symbol) do update
 			set provider_token = excluded.provider_token,
 			    tick_size = excluded.tick_size,
 			    lot_size = excluded.lot_size,
+			    kind = excluded.kind,
+			    expiry = excluded.expiry,
+			    strike = excluded.strike,
+			    underlying = excluded.underlying,
 			    active = true`,
-			exchange, rw.symbol, rw.token, rw.tickSize, rw.lotSize)
+			exchange, rw.symbol, rw.token, rw.tickSize, rw.lotSize, rw.kind, expiry, strike, underlying)
 	}
 	if err := db.SendBatch(ctx, batch).Close(); err != nil {
 		return err

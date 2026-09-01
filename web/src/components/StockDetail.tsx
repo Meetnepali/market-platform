@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Quote, type StockDetails } from '../lib/api'
+import { PriceChart } from './PriceChart'
 
 /**
  * Groww-style stock detail drawer: Performance (day + 52-week range
@@ -56,6 +57,8 @@ export function StockDetail({ quote, onClose }: { quote: Quote; onClose: () => v
             {Math.abs(chg).toFixed(2)}% today
           </span>
         </div>
+
+        <PriceChart symbol={quote.instrument} exchange={quote.exchange} />
 
         {/* ── Performance ── */}
         <div>

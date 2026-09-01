@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	neturl "net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -147,16 +148,33 @@ type chartResponse struct {
 	} `json:"chart"`
 }
 
-func (y *YahooFeed) fetch(ctx context.Context, in Instrument) (*market.Quote, error) {
-	suffix := ".NS" // NSE listing on Yahoo
-	if in.Exchange == market.BSE {
-		suffix = ".BO"
+// IndexYahooSymbols maps our index instrument symbols to Yahoo tickers.
+// Shared with the api's history proxy.
+var IndexYahooSymbols = map[string]string{
+	"NIFTY 50":          "^NSEI",
+	"NIFTY BANK":        "^NSEBANK",
+	"NIFTY IT":          "^CNXIT",
+	"NIFTY FIN SERVICE": "NIFTY_FIN_SERVICE.NS",
+	"SENSEX":            "^BSESN",
+}
+
+// YahooSymbol resolves an instrument to its Yahoo ticker.
+func YahooSymbol(exchange market.Exchange, symbol string) string {
+	if y, ok := IndexYahooSymbols[symbol]; ok {
+		return y
 	}
+	if exchange == market.BSE {
+		return symbol + ".BO"
+	}
+	return symbol + ".NS"
+}
+
+func (y *YahooFeed) fetch(ctx context.Context, in Instrument) (*market.Quote, error) {
 	// 5 daily bars in one request: today's open plus the close ~5
 	// trading days back for weekly-change metrics.
 	url := fmt.Sprintf(
-		"https://query1.finance.yahoo.com/v8/finance/chart/%s%s?interval=1d&range=5d",
-		in.Symbol, suffix)
+		"https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&range=5d",
+		neturl.PathEscape(YahooSymbol(in.Exchange, in.Symbol)))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

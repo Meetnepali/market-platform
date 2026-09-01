@@ -122,9 +122,11 @@ func run() error {
 // pushes it to the feed adapter.
 func subscribeActive(ctx context.Context, db *pgxpool.Pool, feed ingest.Feed, log *slog.Logger) error {
 	rows, err := db.Query(ctx, `
-		select distinct i.id, i.exchange, i.symbol, i.provider_token
+		select distinct i.id, i.exchange, i.symbol, coalesce(i.provider_token, 0)
 		from instruments i
-		where i.active and i.provider_token is not null and (
+		where i.active
+		  and (i.provider_token is not null or i.kind = 'INDEX')
+		  and (
 			exists (select 1 from strategy_instruments si
 			        join strategies s on s.id = si.strategy_id and s.enabled
 			        where si.instrument_id = i.id)

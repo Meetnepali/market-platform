@@ -931,3 +931,34 @@ tbody tr.clickable:hover {
   font-size: 12.5px;
   margin: 4px 0 0;
 }
+
+/* ── Indices strip ──────────────────────────────────────── */
+.indices-strip {
+  display: flex; gap: 10px; overflow-x: auto;
+  margin: 16px 0 0; padding-bottom: 4px;
+}
+.index-card {
+  flex: 0 0 auto; display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid var(--line); background: var(--card);
+  border-radius: 10px; padding: 8px 14px; min-width: 120px;
+}
+.index-name { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.04em; }
+.index-card b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.index-card .up, .index-card .down { font-size: 12px; }
+
+/* ── F&O tab ────────────────────────────────────────────── */
+.spot { font-size: 14px; align-self: center; opacity: 0.8; }
+.spot b { font-variant-numeric: tabular-nums; }
+select {
+  padding: 8px 12px; font-size: 14px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--card); color: inherit;
+}
+table.chain .strike-col { text-align: center; background: color-mix(in srgb, currentColor 4%, transparent); }
+table.chain tr.atm td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+table.chain td { font-size: 13px; }
+
+/* ── Price chart ────────────────────────────────────────── */
+.price-chart { margin: 12px 0 4px; }
+.chart-ranges { display: flex; gap: 4px; margin-bottom: 8px; }
+.chart-ranges button { font-size: 12px; padding: 4px 10px; opacity: 0.65; }
+.chart-ranges button.active { opacity: 1; border-color: var(--accent); color: var(--accent); }

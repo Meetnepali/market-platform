@@ -52,6 +52,35 @@ export interface StockDetails {
   year_return?: number
 }
 
+export interface HistoryBar {
+  time: number
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+export interface FnoContract {
+  symbol: string
+  kind: 'FUT' | 'CE' | 'PE'
+  expiry: string
+  strike?: number
+  lot_size: number
+}
+
+export interface FnoContracts {
+  underlying: string
+  futures: FnoContract[]
+  options_by_expiry: Record<string, FnoContract[]>
+}
+
+export interface FnoUnderlying {
+  underlying: string
+  futures: number
+  options: number
+}
+
 export interface Candle {
   time: string
   open: number
@@ -97,6 +126,12 @@ export const api = {
   quote: (symbol: string) => get<Quote>(`/api/quotes/${symbol}`),
   stockDetails: (symbol: string, exchange = 'NSE') =>
     get<StockDetails>(`/api/stocks/${symbol}?exchange=${exchange}`),
+  history: (symbol: string, exchange = 'NSE', range = '3mo', interval = '1d') =>
+    get<HistoryBar[]>(
+      `/api/history/${encodeURIComponent(symbol)}?exchange=${exchange}&range=${range}&interval=${interval}`,
+    ),
+  fnoUnderlyings: () => get<FnoUnderlying[]>('/api/fno/underlyings'),
+  fnoContracts: (underlying: string) => get<FnoContracts>(`/api/fno/${underlying}`),
   candles: (symbol: string, limit = 500) =>
     get<Candle[]>(`/api/candles/${symbol}?limit=${limit}`),
   signals: (limit = 100) => get<Signal[]>(`/api/signals?limit=${limit}`),

@@ -5,6 +5,7 @@ import { api, type Quote, type Signal } from './lib/api'
 import { useSignals } from './hooks/useSignals'
 import { useQuotes } from './hooks/useQuotes'
 import { StockDetail } from './components/StockDetail'
+import { FnoTab } from './components/FnoTab'
 
 const ALL = ['*'] // stream every stock the backend tracks
 const ALLOWED_EMAIL = 'meetnepali922@gmail.com'
@@ -78,14 +79,17 @@ function SignIn() {
 
 const MAX_ROWS = 300
 
-type Tab = 'market' | 'buy' | 'sell' | 'stats'
+type Tab = 'market' | 'fno' | 'buy' | 'sell' | 'stats'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'market', label: 'Market Watchlist' },
+  { key: 'fno', label: 'F&O' },
   { key: 'buy', label: 'Buy Signals' },
   { key: 'sell', label: 'Sell Signals' },
   { key: 'stats', label: 'Weekly Stats' },
 ]
+
+const INDICES = ['NIFTY 50', 'NIFTY BANK', 'NIFTY IT', 'NIFTY FIN SERVICE', 'SENSEX']
 
 function Dashboard({ email }: { email: string }) {
   const [symbolById, setSymbolById] = useState<Record<number, string>>({})
@@ -129,6 +133,8 @@ function Dashboard({ email }: { email: string }) {
         </div>
       </header>
 
+      <IndicesStrip quotes={quotes} />
+
       <nav className="tabs">
         {TABS.map((t) => (
           <button
@@ -148,6 +154,7 @@ function Dashboard({ email }: { email: string }) {
       </nav>
 
       {tab === 'market' && <MarketTab quotes={quotes} />}
+      {tab === 'fno' && <FnoTab quotes={quotes} />}
       {tab === 'buy' && (
         <SignalTab
           title="Buy Signals"
@@ -166,6 +173,36 @@ function Dashboard({ email }: { email: string }) {
       )}
       {tab === 'stats' && <StatsTab quotes={quotes} />}
     </main>
+  )
+}
+
+/* ── Indices strip (always visible) ───────────────────────────────── */
+
+function IndicesStrip({ quotes }: { quotes: Record<string, Quote> }) {
+  const available = INDICES.map((sym) => {
+    const q = quotes[`NSE:${sym}`] ?? quotes[`BSE:${sym}`]
+    return q ? { sym, q } : null
+  }).filter(Boolean) as { sym: string; q: Quote }[]
+
+  if (available.length === 0) return null
+  return (
+    <div className="indices-strip">
+      {available.map(({ sym, q }) => {
+        const chg = q.previous_close
+          ? ((q.ltp - q.previous_close) / q.previous_close) * 100
+          : 0
+        return (
+          <div key={sym} className="index-card">
+            <span className="index-name">{sym}</span>
+            <b>{q.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</b>
+            <span className={chg >= 0 ? 'up' : 'down'}>
+              {chg >= 0 ? '+' : ''}
+              {chg.toFixed(2)}%
+            </span>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

@@ -6,6 +6,8 @@ import { useSignals } from './hooks/useSignals'
 import { useQuotes } from './hooks/useQuotes'
 import { StockDetail } from './components/StockDetail'
 import { FnoTab } from './components/FnoTab'
+import { BuyScanTab } from './components/BuyScanTab'
+import { DataTable, type Column } from './components/DataTable'
 
 const ALL = ['*'] // stream every stock the backend tracks
 const ALLOWED_EMAIL = 'meetnepali922@gmail.com'
@@ -79,11 +81,18 @@ function SignIn() {
 
 const MAX_ROWS = 300
 
-type Tab = 'market' | 'fno' | 'buy' | 'sell' | 'stats'
+// Two top-level sections. Equity holds everything stock-related as
+// sub-tabs; F&O is self-contained (underlying picker, chain, futures).
+type Section = 'equity' | 'fno'
+type EquityTab = 'watchlist' | 'buy' | 'sell' | 'stats'
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'market', label: 'Market Watchlist' },
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'equity', label: 'Equity' },
   { key: 'fno', label: 'F&O' },
+]
+
+const EQUITY_TABS: { key: EquityTab; label: string }[] = [
+  { key: 'watchlist', label: 'Watchlist' },
   { key: 'buy', label: 'Buy Signals' },
   { key: 'sell', label: 'Sell Signals' },
   { key: 'stats', label: 'Weekly Stats' },
@@ -104,7 +113,8 @@ function Dashboard({ email }: { email: string }) {
 
   const quotes = useQuotes(ALL)
   const signals = useSignals(symbolById)
-  const [tab, setTab] = useState<Tab>('market')
+  const [section, setSection] = useState<Section>('equity')
+  const [equityTab, setEquityTab] = useState<EquityTab>('watchlist')
 
   const buySignals = useMemo(
     () => signals.filter((s) => s.signal_type.startsWith('BUY')),
@@ -135,43 +145,58 @@ function Dashboard({ email }: { email: string }) {
 
       <IndicesStrip quotes={quotes} />
 
-      <nav className="tabs">
-        {TABS.map((t) => (
+      {/* Primary section switch: Equity vs F&O — two distinct worlds,
+          each with its own instruments, own analysis, own workflow. */}
+      <nav className="section-tabs">
+        {SECTIONS.map((s) => (
           <button
-            key={t.key}
-            className={tab === t.key ? 'tab active' : 'tab'}
-            onClick={() => setTab(t.key)}
+            key={s.key}
+            className={section === s.key ? 'section-tab active' : 'section-tab'}
+            onClick={() => setSection(s.key)}
           >
-            {t.label}
-            {t.key === 'buy' && buySignals.length > 0 && (
-              <span className="pill buy-pill">{buySignals.length}</span>
-            )}
-            {t.key === 'sell' && sellSignals.length > 0 && (
-              <span className="pill sell-pill">{sellSignals.length}</span>
+            {s.label}
+            {s.key === 'equity' && buySignals.length + sellSignals.length > 0 && (
+              <span className="pill">{buySignals.length + sellSignals.length}</span>
             )}
           </button>
         ))}
       </nav>
 
-      {tab === 'market' && <MarketTab quotes={quotes} />}
-      {tab === 'fno' && <FnoTab quotes={quotes} />}
-      {tab === 'buy' && (
-        <SignalTab
-          title="Buy Signals"
-          hint="Stocks down ≥20% over the last week — oversold dip candidates."
-          signals={buySignals}
-          tone="up"
-        />
+      {section === 'equity' && (
+        <>
+          <nav className="tabs">
+            {EQUITY_TABS.map((t) => (
+              <button
+                key={t.key}
+                className={equityTab === t.key ? 'tab active' : 'tab'}
+                onClick={() => setEquityTab(t.key)}
+              >
+                {t.label}
+                {t.key === 'buy' && buySignals.length > 0 && (
+                  <span className="pill buy-pill">{buySignals.length}</span>
+                )}
+                {t.key === 'sell' && sellSignals.length > 0 && (
+                  <span className="pill sell-pill">{sellSignals.length}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {equityTab === 'watchlist' && <MarketTab quotes={quotes} />}
+          {equityTab === 'buy' && <BuyScanTab />}
+          {equityTab === 'sell' && (
+            <SignalTab
+              title="Sell Signals"
+              hint="Stocks up ≥20% over the last week — overbought, consider booking profit."
+              signals={sellSignals}
+              tone="down"
+            />
+          )}
+          {equityTab === 'stats' && <StatsTab quotes={quotes} />}
+        </>
       )}
-      {tab === 'sell' && (
-        <SignalTab
-          title="Sell Signals"
-          hint="Stocks up ≥20% over the last week — overbought, consider booking profit."
-          signals={sellSignals}
-          tone="down"
-        />
-      )}
-      {tab === 'stats' && <StatsTab quotes={quotes} />}
+
+      {section === 'fno' && <FnoTab quotes={quotes} />}
     </main>
   )
 }
@@ -271,31 +296,14 @@ function MarketTab({ quotes }: { quotes: Record<string, Quote> }) {
         </div>
       </div>
 
-      <div className="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Stock</th>
-              <th className="text-right">LTP (₹)</th>
-              <th className="text-right">Day Change</th>
-              <th className="text-right">1W Move</th>
-              <th className="text-right">Day Range (L – H)</th>
-              <th className="text-right">Volume</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((q) => (
-              <QuoteRow key={`${q.exchange}:${q.instrument}`} q={q} onSelect={setSelected} />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {rows.length === 0 && (
-        <div className="empty-state">
-          <p>Waiting for live price updates from feed…</p>
-        </div>
-      )}
+      <DataTable
+        columns={watchlistColumns}
+        rows={visible}
+        rowKey={(q) => `${q.exchange}:${q.instrument}`}
+        onRowClick={setSelected}
+        emptyMessage="Waiting for live price updates from feed…"
+        maxHeight="65vh"
+      />
 
       {selected && <StockDetail quote={selected} onClose={() => setSelected(null)} />}
     </section>
@@ -323,59 +331,60 @@ function SignalTab({
       </h2>
       <p className="hint-text">{hint}</p>
 
-      {signals.length === 0 ? (
-        <div className="empty-state">
-          <p>No signals active yet — incoming signals will trigger and display here immediately.</p>
-        </div>
-      ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Stock</th>
-                <th>Signal</th>
-                <th className="text-right">Trigger Price</th>
-                <th className="text-right">1W Move</th>
-              </tr>
-            </thead>
-            <tbody>
-              {signals.slice(0, 200).map((s) => (
-                <tr key={s.id} className="signal-row">
-                  <td className="num-muted">
-                    {new Date(s.created_at).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                    })}
-                  </td>
-                  <td>
-                    <span className="stock-symbol">{s.symbol}</span>
-                  </td>
-                  <td>
-                    <span className="signal-badge">{s.signal_type}</span>
-                  </td>
-                  <td className="text-right price-text">
-                    {s.price != null ? `₹${Number(s.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
-                  </td>
-                  <td className="text-right">
-                    {s.metrics?.week_change_percent != null ? (
-                      <span className={`chg-pill ${tone}`}>
-                        <span className="arrow">{Number(s.metrics.week_change_percent) >= 0 ? '▲' : '▼'}</span>
-                        {Math.abs(Number(s.metrics.week_change_percent)).toFixed(2)}%
-                      </span>
-                    ) : (
-                      <span className="num-muted">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        columns={signalColumns(tone)}
+        rows={signals.slice(0, 200)}
+        rowKey={(s) => s.id}
+        rowClassName={() => 'signal-row'}
+        emptyMessage="No signals active yet — incoming signals will trigger and display here immediately."
+        maxHeight="55vh"
+      />
     </section>
   )
+}
+
+function signalColumns(tone: 'up' | 'down'): Column<Signal>[] {
+  return [
+    {
+      key: 'time',
+      header: 'Time',
+      render: (s) => (
+        <span className="num-muted">
+          {new Date(s.created_at).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })}
+        </span>
+      ),
+    },
+    { key: 'stock', header: 'Stock', render: (s) => <span className="stock-symbol">{s.symbol}</span> },
+    { key: 'signal', header: 'Signal', render: (s) => <span className="signal-badge">{s.signal_type}</span> },
+    {
+      key: 'price',
+      header: 'Trigger Price',
+      align: 'right',
+      render: (s) => (
+        <span className="price-text">
+          {s.price != null ? `₹${Number(s.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'week',
+      header: '1W Move',
+      align: 'right',
+      render: (s) =>
+        s.metrics?.week_change_percent != null ? (
+          <span className={`chg-pill ${tone}`}>
+            <span className="arrow">{Number(s.metrics.week_change_percent) >= 0 ? '▲' : '▼'}</span>
+            {Math.abs(Number(s.metrics.week_change_percent)).toFixed(2)}%
+          </span>
+        ) : (
+          <span className="num-muted">—</span>
+        ),
+    },
+  ]
 }
 
 /* ── Weekly stats tab ─────────────────────────────────────────────── */
@@ -461,44 +470,34 @@ function StatsTab({ quotes }: { quotes: Record<string, Quote> }) {
   )
 }
 
+const moversColumns: Column<Quote>[] = [
+  {
+    key: 'stock',
+    header: 'Stock',
+    render: (q) => (
+      <div className="stock-name-cell">
+        <span className="stock-symbol">{q.instrument}</span>
+        <span className="exch-badge">{q.exchange}</span>
+      </div>
+    ),
+  },
+  {
+    key: 'ltp',
+    header: 'LTP',
+    align: 'right',
+    render: (q) => <span className="price-text">₹{fmtCurrency(q.ltp)}</span>,
+  },
+  { key: 'week', header: '1W Move', align: 'right', render: (q) => <ChangePill pct={weekPct(q)} /> },
+]
+
 function MoversTable({ rows }: { rows: Quote[] }) {
   return (
-    <div className="table-wrapper">
-      <table>
-        <thead>
-          <tr>
-            <th>Stock</th>
-            <th className="text-right">LTP</th>
-            <th className="text-right">1W Move</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((q) => {
-            const w = weekPct(q)
-            const isUp = w >= 0
-            return (
-              <tr key={`${q.exchange}:${q.instrument}`}>
-                <td>
-                  <div className="stock-name-cell">
-                    <span className="stock-symbol">{q.instrument}</span>
-                    <span className="exch-badge">{q.exchange}</span>
-                  </div>
-                </td>
-                <td className="text-right price-text">
-                  ₹{q.ltp.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </td>
-                <td className="text-right">
-                  <span className={`chg-pill ${isUp ? 'up' : 'down'}`}>
-                    <span className="arrow">{isUp ? '▲' : '▼'}</span>
-                    {Math.abs(w).toFixed(2)}%
-                  </span>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={moversColumns}
+      rows={rows}
+      rowKey={(q) => `${q.exchange}:${q.instrument}`}
+      maxHeight={false}
+    />
   )
 }
 
@@ -530,57 +529,69 @@ function fmtVolume(vol: number): string {
   return vol.toLocaleString('en-IN')
 }
 
-const QuoteRow = memo(function QuoteRow({
-  q,
-  onSelect,
-}: {
-  q: Quote
-  onSelect?: (q: Quote) => void
-}) {
-  const chg = changePct(q)
-  const wk = weekPct(q)
-  const isDayUp = chg >= 0
-  const isWkUp = wk >= 0
+/** Live LTP cell — flashes green/red on each tick via a per-row ref,
+ *  the one piece of the watchlist row that needs its own hook state. */
+const PriceCell = memo(function PriceCell({ q }: { q: Quote }) {
   const prev = useRef(q.ltp)
   const dir = q.ltp > prev.current ? 'tick-up' : q.ltp < prev.current ? 'tick-down' : ''
-
   useEffect(() => {
     prev.current = q.ltp
   }, [q.ltp])
-
   return (
-    <tr className={onSelect ? 'clickable' : undefined} onClick={() => onSelect?.(q)}>
-      <td>
-        <div className="stock-name-cell">
-          <span className="stock-symbol">{q.instrument}</span>
-          <span className="exch-badge">{q.exchange}</span>
-        </div>
-      </td>
-      <td className="text-right">
-        <span key={q.ltp} className={`ltp price-text ${dir}`}>
-          ₹{fmtCurrency(q.ltp)}
-        </span>
-      </td>
-      <td className="text-right">
-        <span className={`chg-pill ${isDayUp ? 'up' : 'down'}`}>
-          <span className="arrow">{isDayUp ? '▲' : '▼'}</span>
-          {Math.abs(chg).toFixed(2)}%
-        </span>
-      </td>
-      <td className="text-right">
-        {q.week_ago_close ? (
-          <span className={`chg-pill ${isWkUp ? 'up' : 'down'}`}>
-            <span className="arrow">{isWkUp ? '▲' : '▼'}</span>
-            {Math.abs(wk).toFixed(2)}%
-          </span>
-        ) : (
-          <span className="num-muted">—</span>
-        )}
-      </td>
-      <td className="text-right num-muted">
-        {q.low && q.high ? `${fmtCurrency(q.low)} – ${fmtCurrency(q.high)}` : '—'}
-      </td>
-      <td className="text-right num-muted">{fmtVolume(q.volume)}</td>
-    </tr>
+    <span key={q.ltp} className={`ltp price-text ${dir}`}>
+      ₹{fmtCurrency(q.ltp)}
+    </span>
   )
 })
+
+function ChangePill({ pct }: { pct: number }) {
+  const isUp = pct >= 0
+  return (
+    <span className={`chg-pill ${isUp ? 'up' : 'down'}`}>
+      <span className="arrow">{isUp ? '▲' : '▼'}</span>
+      {Math.abs(pct).toFixed(2)}%
+    </span>
+  )
+}
+
+const watchlistColumns: Column<Quote>[] = [
+  {
+    key: 'stock',
+    header: 'Stock',
+    render: (q) => (
+      <div className="stock-name-cell">
+        <span className="stock-symbol">{q.instrument}</span>
+        <span className="exch-badge">{q.exchange}</span>
+      </div>
+    ),
+  },
+  { key: 'ltp', header: 'LTP (₹)', align: 'right', render: (q) => <PriceCell q={q} /> },
+  {
+    key: 'day',
+    header: 'Day Change',
+    align: 'right',
+    render: (q) => <ChangePill pct={changePct(q)} />,
+  },
+  {
+    key: 'week',
+    header: '1W Move',
+    align: 'right',
+    render: (q) => (q.week_ago_close ? <ChangePill pct={weekPct(q)} /> : <span className="num-muted">—</span>),
+  },
+  {
+    key: 'range',
+    header: 'Day Range (L – H)',
+    align: 'right',
+    render: (q) => (
+      <span className="num-muted">
+        {q.low && q.high ? `${fmtCurrency(q.low)} – ${fmtCurrency(q.high)}` : '—'}
+      </span>
+    ),
+  },
+  {
+    key: 'volume',
+    header: 'Volume',
+    align: 'right',
+    render: (q) => <span className="num-muted">{fmtVolume(q.volume)}</span>,
+  },
+]

@@ -57,6 +57,7 @@ func (s *Server) Router(corsOrigin string) http.Handler {
 			r.Get("/fno/{underlying}", s.handleFnoContracts)
 			r.Get("/candles/{symbol}", s.handleGetCandles)
 			r.Get("/signals", s.handleListSignals)
+			r.Get("/scans/latest", s.handleLatestScan)
 			r.Post("/strategies", s.handleCreateStrategy)
 			r.Put("/strategies/{id}", s.handleUpdateStrategy)
 			r.Post("/strategies/{id}/enable", s.handleSetStrategyEnabled(true))

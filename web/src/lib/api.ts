@@ -81,6 +81,20 @@ export interface FnoUnderlying {
   options: number
 }
 
+export interface ScanPick {
+  symbol: string
+  rank: number
+  score: number
+  close: number
+  reasons: string[]
+  metrics: Record<string, number>
+}
+
+export interface ScanResponse {
+  scan_date: string
+  picks: ScanPick[]
+}
+
 export interface Candle {
   time: string
   open: number
@@ -135,6 +149,7 @@ export const api = {
   candles: (symbol: string, limit = 500) =>
     get<Candle[]>(`/api/candles/${symbol}?limit=${limit}`),
   signals: (limit = 100) => get<Signal[]>(`/api/signals?limit=${limit}`),
+  latestScan: () => get<ScanResponse>('/api/scans/latest'),
   createStrategy: (body: {
     name: string
     configuration: unknown

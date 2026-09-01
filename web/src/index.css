@@ -197,7 +197,46 @@ h1 {
   border-color: var(--text-muted);
 }
 
-/* ── Tabs Navigation ─────────────────────────────────────── */
+/* ── Section Nav (Equity / F&O — the top-level split) ──────── */
+.section-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 18px 0 16px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg, 12px);
+  width: fit-content;
+}
+
+.section-tab {
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 9px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.section-tab:hover {
+  color: var(--text-primary);
+}
+
+.section-tab.active {
+  color: #fff;
+  background: var(--accent);
+}
+.section-tab.active .pill {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* ── Tabs Navigation (sub-tabs within a section) ───────────── */
 .tabs {
   display: flex;
   gap: 8px;
@@ -372,12 +411,17 @@ h2 {
 }
 
 /* ── Tables & Stock Data Readability ─────────────────────── */
+/* .table-wrapper is the ONE scroll container every table uses (see
+   DataTable.tsx): overflow-x for narrow screens, overflow-y capped by
+   an inline maxHeight so long lists scroll in place instead of
+   stretching the whole page. thead is sticky within this container. */
 .table-wrapper {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   overflow-x: auto;
   box-shadow: var(--shadow-sm);
+  position: relative;
 }
 
 table {
@@ -390,6 +434,9 @@ table {
 thead {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 th {
@@ -542,6 +589,23 @@ tbody tr.clickable:hover {
   font-size: 13px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Scanner reason chips (Buy Signals tab) ──────────────── */
+.reasons-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 480px;
+}
+.reason-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 /* ── Signal Badges ───────────────────────────────────────── */
@@ -953,9 +1017,9 @@ select {
   padding: 8px 12px; font-size: 14px; border-radius: 8px;
   border: 1px solid var(--line); background: var(--card); color: inherit;
 }
-table.chain .strike-col { text-align: center; background: color-mix(in srgb, currentColor 4%, transparent); }
-table.chain tr.atm td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-table.chain td { font-size: 13px; }
+.chain .strike-col { text-align: center; background: color-mix(in srgb, currentColor 4%, transparent); }
+.chain tr.atm td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.chain td { font-size: 13px; }
 
 /* ── Price chart ────────────────────────────────────────── */
 .price-chart { margin: 12px 0 4px; }
